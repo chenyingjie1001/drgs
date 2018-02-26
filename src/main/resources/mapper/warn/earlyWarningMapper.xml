@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.firesoon.drgs.mapper.warn.EarlyWarningMapper">
+
+    <select id="find" resultType="EarlyWarning">
+        select * from early_warning t
+        <where>
+            <if test="title != null and title != ''">
+                and (t.name like '%${title}%'
+                      or doctorname like '%${title}%')
+            </if>
+        </where>
+    </select>
+
+    <insert id="add">
+        INSERT INTO early_warning VALUES
+        (
+        #{id},
+        #{name},
+        #{condition},
+        #{rulecode},
+        #{rulecond},
+        #{value},
+        #{doctorcode},
+        #{doctorname},
+        #{createdate},
+        #{createby},
+        #{remark},
+        #{message},
+        #{flag},
+        #{telephone}
+        )
+    </insert>
+    <delete id="del">
+
+        DELETE FROM early_warning t WHERE t.id = #{id}
+    </delete>
+    <update id="update">
+
+        UPDATE early_warning t
+        <set>
+            <if test="name != null">
+                t.name = #{name},
+            </if>
+            <if test="condition != null">
+                t.condition = #{condition},
+            </if>
+            <if test="rulecode != null">
+                t.rulecode = #{rulecode},
+            </if>
+            <if test="rulecond != null">
+                t.rulecond = #{rulecond},
+            </if>
+            <if test="value != null">
+                t.value = #{value},
+            </if>
+            <if test="doctorcode != null">
+                t.doctorcode = #{doctorcode},
+            </if>
+            <if test="doctorname != null">
+                t.doctorname = #{doctorname},
+            </if>
+            <if test="createdate != null">
+                t.createdate = #{createdate},
+            </if>
+            <if test="createby != null">
+                t.createby = #{createby},
+            </if>
+            <if test="remark != null">
+                t.remark = #{remark},
+            </if>
+            <if test="message != null">
+                t.message = #{message},
+            </if>
+            <if test="flag != null">
+                t.flag = #{flag},
+            </if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <select id="getSelectOption" resultType="map">
+        select code, name from rule_dictionary t
+        WHERE type = #{type}
+    </select>
+
+
+    <select id="getDoctors" resultType="map">
+        SELECT distinct deptcode code, dept name from doctor t
+    </select>
+
+    <select id="getDoctorsChildren" resultType="map">
+        SELECT code, name, telephone from doctor t
+        WHERE deptcode = #{_parameter}
+    </select>
+</mapper>

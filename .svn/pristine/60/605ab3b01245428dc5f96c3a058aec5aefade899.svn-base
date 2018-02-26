@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.firesoon.drgs.mapper.range.RangeMapper">
+    <select id="find" resultType="Range">
+
+        select * from range
+        <where>
+            <if test="title != null">
+                <![CDATA[
+                and (range LIKE '%${title}%' OR rangename LIKE '%${title}%' OR code LIKE '%${title}%' OR codedesc LIKE '%${title}%')
+                ]]>
+            </if>
+            <if test="range != null">
+                and range = #{range}
+            </if>
+            <if test="rangename != null">
+                and rangename = #{rangename}
+            </if>
+            <if test="code != null">
+                and code = #{code}
+            </if>
+            <if test="codedesc != null">
+                and codedesc = #{codedesc}
+            </if>
+            <if test="rangetype != null">
+                and rangetype = #{rangetype}
+            </if>
+            <if test="explanation != null">
+                and explanation = #{explanation}
+            </if>
+            <if test="bak != null">
+                and bak = #{bak}
+            </if>
+            <if test="bak1 != null">
+                and bak1 = #{bak1}
+            </if>
+            <if test="bak2 != null">
+                and bak2 = #{bak2}
+            </if>
+            <if test="bak3 != null">
+                and bak3 = #{bak3}
+            </if>
+        </where>
+    </select>
+
+    <insert id="add" parameterType="Range">
+        INSERT INTO range(
+            range,
+            rangename,
+            code,
+            codedesc,
+            rangetype,
+            bak,
+            explanation,
+            bak1,
+            bak2,
+            bak3,
+            createdate,
+            updatedate,
+            operater) VALUES
+            (
+            #{range, jdbcType=VARCHAR},
+            #{rangename, jdbcType=VARCHAR},
+            #{code, jdbcType=VARCHAR},
+            #{codedesc, jdbcType=VARCHAR},
+            #{rangetype, jdbcType=VARCHAR},
+            #{bak, jdbcType=VARCHAR},
+            #{explanation, jdbcType=VARCHAR},
+            #{bak1, jdbcType=VARCHAR},
+            #{bak2, jdbcType=VARCHAR},
+            #{bak3, jdbcType=VARCHAR},
+            #{createdate, jdbcType=TIMESTAMP},
+            #{updatedate, jdbcType=TIMESTAMP},
+            #{operater, jdbcType=VARCHAR}
+            )
+    </insert>
+
+    <select id="checkImportData" resultType="int">
+        SELECT COUNT(1) FROM range where range = #{range} and code = #{code} and codedesc = #{codedesc}
+    </select>
+
+    <update id="importUpdate" parameterType="Range">
+        update range t
+        <set>
+            <if test="rangename != null">t.rangename = #{rangename},</if>
+            <if test="rangetype != null">t.rangetype = #{rangetype},</if>
+            <if test="bak != null">t.bak = #{bak},</if>
+            <if test="explanation != null">t.explanation = #{explanation},</if>
+            <if test="bak1 != null">t.bak1 = #{bak1},</if>
+            <if test="bak2 != null">t.bak2 = #{bak2},</if>
+            <if test="bak3 != null">t.bak3 = #{bak3},</if>
+            <if test="updatedate != null">t.updatedate = #{updatedate},</if>
+            <if test="operater != null">t.operater = #{operater},</if>
+        </set>
+        WHERE t.range = #{range} and t.code = #{code} and t.codedesc = #{codedesc}
+    </update>
+
+    <update id="update" parameterType="Range">
+      update range t
+      <set>
+          <if test="range != null">t.range = #{range},</if>
+          <if test="rangename != null">t.rangename = #{rangename},</if>
+          <if test="code != null">t.code = #{code},</if>
+          <if test="codedesc != null">t.codedesc = #{codedesc},</if>
+          <if test="rangetype != null">t.rangetype = #{rangetype},</if>
+          <if test="bak != null">t.bak = #{bak},</if>
+          <if test="explanation != null">t.explanation = #{explanation},</if>
+          <if test="bak1 != null">t.bak1 = #{bak1},</if>
+          <if test="bak2 != null">t.bak2 = #{bak2},</if>
+          <if test="bak3 != null">t.bak3 = #{bak3},</if>
+          <if test="updatedate != null">t.updatedate = #{updatedate},</if>
+          <if test="operater != null">t.operater = #{operater},</if>
+      </set>
+        WHERE id = #{id}
+    </update>
+    
+    <delete id="del" parameterType="Range">
+        delete from range WHERE id = #{id, jdbcType=INTEGER}
+    </delete>
+    <delete id="delRange" parameterType="int">
+        delete from range WHERE id = #{id}
+    </delete>
+</mapper>

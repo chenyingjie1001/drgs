@@ -1,0 +1,87 @@
+PATIENT_ACCOUNTING 总结构表
+MEDICARE_SETTLEMENT_LIST 医保结算清单
+MEDICARE 按病种汇总
+MEDCIARE_COMPLETE_DATAREPORT 日报完成情况
+FEIKONGFEITZ 非控费调整
+DETAILMSG4 按病种汇总明细
+DETAILMSG3 按病种汇总明细
+DETAILMSG2 按病种汇总明细
+DETAILMSG1 按病种汇总明细
+CONSTMONITOR2 在院控费病种费用监控
+CONSTMONITOR1 控费病种病例分析
+------------------------------------------------------------------------------
+1.用来获取数据
+costmonitoring
+控费病种病例分析
+在院控费病种费用监控
+出院控费病例数占比
+出院控费病例医疗总费用占比
+在院控费病例数占比
+在院控费病例医疗总费用占比
+
+DetailMsg
+控费病种汇总分析 ----> 详细
+
+FeiKongFeiTZDate
+非控费主诊断调整预测
+非控费主手术调整预测
+非控费病种调整预测
+
+
+2.用来获取数据结构
+DETAILMSG4 按病种汇总明细
+DETAILMSG3 按病种汇总明细	医生
+DETAILMSG2 按病种汇总明细	参保类型
+DETAILMSG1 按病种汇总明细 	医保类别
+CONSTMONITOR2 在院控费病种费用监控
+CONSTMONITOR1 控费病种病例分析
+FEIKONGFEITZ 非控费调整
+
+
+
+PATIENT_ACCOUNTING 总结构表
+MEDICARE_SETTLEMENT_LIST 医保结算清单
+MEDICARE 按病种汇总
+MEDCIARE_COMPLETE_DATAREPORT 日报完成情况
+------------------------------------------------------------------------------
+
+
+
+
+2017-12-27
+为  costmonitoring mapping  在drgs库下 添加视图   costmonitoring
+
+为  getDetailMsg mapping 在drgs库下 添加视图 DetailMsg
+
+为  findFeiKongFeiTZ mapping 在drgs库下 添加视图 FeiKongFeiTZDate
+
+20171228
+medciare_complete_datareport 视图中   nvl(count(1), 0) as 杭州市妇产科医院例数 ----->  nvl(count(1), 0) as 病例数
+
+20180108
+drgs.NONCONTROLUP 添加标识状态字段（启用状态标识）
+20180109
+添加关于非控费的获取结构的视图
+FEIKONGFEIBZTZ
+FEIKONGFEIZSSTZ
+feikongfeizzdtz
+更改关于获取非控费数据的视图
+feikongfeitzdata
+20180110
+patient_accounting 添加流水号
+20180111
+为项目结算病例添加 xiangmujsbldata 视图，以获取数据
+为项目结算病例添加 xiangmujsbl 视图，以获取数据结构
+为项目结算病例 详细 添加 xiangmujsblxx 视图，以获取数据结构
+为得到 projectsettlement 表中文字段 创建 projectsettlementview 视图
+为项目结算扣款明细 添加 xiangmujskkmx 视图，以获取数据结构
+201801116
+out_medicare表添加  "退出原因" 字段
+constmonitor2 添加 "是否预警" 字段
+
+
+
+
+
+
+

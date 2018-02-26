@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns="http://www.springframework.org/schema/beans" xmlns:context="http://www.springframework.org/schema/context"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context-4.0.xsd">
+
+<context:property-placeholder location="classpath:conf.properties"/>
+ <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		<property name="securityManager" ref="securityManager" />
+		<!-- 设定用户的登录链接，这里为cas登录页面的链接地址可配置回调地址 -->
+		<property name="loginUrl" value="${casServerUrlPrefix}/login?service=${shiroServerUrlPrefix}${casFilterUrlPattern}" />
+		<property name="filters">
+			<map>
+				<!-- 添加casFilter到shiroFilter -->
+				<entry key="cas" value-ref="casFilter" />
+				<entry key="logout" value-ref="logoutFilter" />
+				<entry key="user" value-ref="userFilter" />
+			</map>
+		</property>
+		<property name="filterChainDefinitions">
+			<value>
+				/shiro-cas = cas
+				/logout = logout
+				/*/api-docs=anon
+				/callback*=anon
+				/swagger*=anon
+				/configuration/*=anon
+				/*/configuration/*=anon
+				/webjars/**=anon
+				/** = user
+			</value>
+		</property>
+	</bean>
+
+	<bean id="userFilter" class="com.firesoon.drgs.shiro.cas.filter.UserFilter">
+		<property name="loginUrl" value="${casServerUrlPrefix}/login?service=${shiroServerUrlPrefix}${casFilterUrlPattern}"></property>
+	</bean>
+	<bean id="casFilter" class="com.firesoon.drgs.shiro.cas.filter.CasFilter">
+		<!-- 配置验证错误时的失败页面 -->
+		<property name="failureUrl" value="" />
+		<property name="successUrl" value="${successUrl}" />
+	</bean>
+
+	<bean id="logoutFilter" class="com.firesoon.drgs.shiro.cas.filter.SkyLogoutFilter">
+		<!-- 配置验证错误时的失败页面 -->
+		<property name="redirectUrl" value="${casServerUrlPrefix}/logout?service=${successUrl}" />
+	</bean>
+
+	<bean id="casRealm" class="com.firesoon.drgs.shiro.cas.MyShiroCasRealm">
+		<!-- 认证通过后的默认角色 -->
+<!-- 		<property name="defaultRoles" value="ROLE_USER" /> -->
+		<!-- cas服务端地址前缀 -->
+		<property name="casServerUrlPrefix" value="${casServerUrlPrefix}" />
+		<!-- 应用服务地址，用来接收cas服务端票据 -->
+		<property name="casService" value="${shiroServerUrlPrefix}" />
+	</bean>
+
+	<!-- Shiro's main business-tier object for web-enabled applications -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<!-- <property name="sessionManager" ref="sessionManager" /> -->
+		<property name="subjectFactory" ref="casSubjectFactory"></property>
+		<property name="realm" ref="casRealm" />
+	</bean>
+
+	<bean id="casSubjectFactory" class="org.apache.shiro.cas.CasSubjectFactory"></bean>
+
+
+
+	<bean
+		class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+		<property name="securityManager" ref="securityManager" />
+	</bean>
+
+
+	<!-- <bean id="sessionManager" class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager"> 
+		<property name="globalSessionTimeout" value="3600000" /> <property name="sessionDAO" 
+		ref="sessionDAO" /> </bean> -->
+
+	<!-- <bean id="sessionDAO" class="com.distinct.web.session.redis.RedisSessionDAO"> 
+		<property name="sessionTimeout" value="1800000" /> <property name="redisManager" 
+		ref="redisManager" /> </bean> -->
+
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"></bean>
+
+	<bean
+		class="org.springframework.beans.factory.config.MethodInvokingFactoryBean">
+		<property name="staticMethod"
+			value="org.apache.shiro.SecurityUtils.setSecurityManager"></property>
+		<property name="arguments" ref="securityManager"></property>
+	</bean>   
+</beans>

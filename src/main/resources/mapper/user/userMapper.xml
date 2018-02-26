@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.firesoon.drgs.mapper.user.UserMapper">
+    <select id="find" resultType="User">
+
+        select * from portal.base_user
+        <where>
+            <if test="login_name != null">
+                login_name = #{login_name}
+            </if>
+        </where>
+    </select>
+
+    <select id="findUserByLogin" resultType="User">
+        select * from portal.base_user t where t.login_name = #{login_name}
+    </select>
+</mapper>

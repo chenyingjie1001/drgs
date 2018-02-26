@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.firesoon.drgs.mapper.disease.DiseaseMapper">
+    <select id="find" resultType="Disease">
+        SELECT * FROM disease
+        <where>
+            <if test="title != null">
+                and (diseasename LIKE '%${title}%' OR medicarename LIKE '%${title}%')
+            </if>
+            <if test="serial != null">
+                and serial = #{serial}
+            </if>
+            <if test="diseasecode != null">
+                and diseasecode = #{diseasecode}
+            </if>
+            <if test="diseasename != null">
+                and diseasename = #{diseasename}
+            </if>
+            <if test="medicarecode != null">
+                and medicarecode = #{medicarecode}
+            </if>
+            <if test="medicarename != null">
+                and medicarename = #{medicarename}
+            </if>
+        </where>
+    </select>
+
+    <insert id="add" parameterType="Disease">
+        INSERT into disease VALUES (
+            #{id, jdbcType=VARCHAR},
+            #{serial, jdbcType=VARCHAR},
+            #{diseasecode, jdbcType=VARCHAR},
+            #{diseasename, jdbcType=VARCHAR},
+            #{medicarecode, jdbcType=VARCHAR},
+            #{medicarename, jdbcType=VARCHAR},
+            #{payment, jdbcType=VARCHAR},
+            #{personnum, jdbcType=VARCHAR},
+            #{totalpay, jdbcType=VARCHAR},
+            #{cq, jdbcType=VARCHAR},
+            #{cg, jdbcType=VARCHAR},
+            #{bed, jdbcType=VARCHAR},
+            #{personal, jdbcType=VARCHAR},
+            #{avgpay, jdbcType=VARCHAR},
+            #{drugpay, jdbcType=VARCHAR},
+            #{suppliespay, jdbcType=VARCHAR},
+            #{surgerypay, jdbcType=VARCHAR},
+            #{bak, jdbcType=VARCHAR},
+            #{bak1, jdbcType=VARCHAR},
+            #{bak2, jdbcType=VARCHAR},
+            #{bak3, jdbcType=VARCHAR},
+            #{createdate, jdbcType=TIMESTAMP},
+            #{updatedate, jdbcType=TIMESTAMP},
+            #{operater, jdbcType=VARCHAR},
+            '0'
+        )
+
+    </insert>
+
+    <select id="checkImportData" resultType="int">
+        SELECT count(1) FROM disease where diseasecode = #{diseasecode} and medicarecode = #{medicarecode}
+    </select>
+
+    <update id="importUpdate" parameterType="Disease">
+        UPDATE DISEASE T
+        <set>
+            <if test="serial!=null">serial=#{serial},</if>
+            <if test="diseasename!=null">diseasename=#{diseasename},</if>
+            <if test="medicarename!=null">medicarename=#{medicarename},</if>
+            <if test="payment!=null">payment=#{payment},</if>
+            <if test="personnum!=null">personnum=#{personnum},</if>
+            <if test="totalpay!=null">totalpay=#{totalpay},</if>
+            <if test="cq!=null">cq=#{cq},</if>
+            <if test="cg!=null">cg=#{cg},</if>
+            <if test="bed!=null">bed=#{bed}</if>
+            <if test="personal!=null">personal=#{personal},</if>
+            <if test="avgpay!=null">avgpay=#{avgpay},</if>
+            <if test="drugpay!=null">drugpay=#{drugpay},</if>
+            <if test="suppliespay!=null">suppliespay=#{suppliespay},</if>
+            <if test="surgerypay!=null">surgerypay=#{surgerypay},</if>
+            <if test="bak!=null">bak=#{bak},</if>
+            <if test="bak1!=null">bak1=#{bak1},</if>
+            <if test="bak2!=null">bak2=#{bak2},</if>
+            <if test="bak3!=null">bak3=#{bak3},</if>
+            <if test="createdate!=null">createdate=#{createdate},</if>
+            <if test="updatedate!=null">updatedate=#{updatedate},</if>
+            <if test="operater!=null">operater=#{operater},</if>
+            <if test="delflag!=null">delflag=#{delflag},</if>
+        </set>
+        WHERE diseasecode = #{diseasecode} and medicarecode = #{medicarecode}
+    </update>
+
+    <update id="update" parameterType="Disease">
+        UPDATE DISEASE T
+        <set>
+            <if test="serial!=null">serial=#{serial},</if>
+            <if test="diseasecode!=null">diseasecode=#{diseasecode},</if>
+            <if test="diseasename!=null">diseasename=#{diseasename},</if>
+            <if test="medicarecode!=null">medicarecode=#{medicarecode},</if>
+            <if test="medicarename!=null">medicarename=#{medicarename},</if>
+            <if test="payment!=null">payment=#{payment},</if>
+            <if test="personnum!=null">personnum=#{personnum},</if>
+            <if test="totalpay!=null">totalpay=#{totalpay},</if>
+            <if test="cq!=null">cq=#{cq},</if>
+            <if test="cg!=null">cg=#{cg},</if>
+            <if test="bed!=null">bed=#{bed},</if>
+            <if test="personal!=null">personal=#{personal},</if>
+            <if test="avgpay!=null">avgpay=#{avgpay},</if>
+            <if test="drugpay!=null">drugpay=#{drugpay},</if>
+            <if test="suppliespay!=null">suppliespay=#{suppliespay},</if>
+            <if test="surgerypay!=null">surgerypay=#{surgerypay},</if>
+            <if test="bak!=null">bak=#{bak},</if>
+            <if test="bak1!=null">bak1=#{bak1},</if>
+            <if test="bak2!=null">bak2=#{bak2},</if>
+            <if test="bak3!=null">bak3=#{bak3},</if>
+            <if test="createdate!=null">createdate=#{createdate},</if>
+            <if test="updatedate!=null">updatedate=#{updatedate},</if>
+            <if test="operater!=null">operater=#{operater},</if>
+            <if test="delflag!=null">delflag=#{delflag},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="del" parameterType="Disease">
+        delete from disease where id = #{id}
+    </delete>
+
+    <select id="findDisease" resultType="map">
+        select distinct t.diseasecode id, t.bak dspell,
+        t.diseasename text
+        from disease t
+        <where>
+            <if test="medicarecode != null">
+                and t.medicarecode = #{medicarecode}
+            </if>
+        </where>
+    </select>
+    <select id="findMedicare" resultType="map">
+        select distinct t.medicarecode id, t.bak1 mspell,
+        t.medicarename text
+        from disease t
+        <where>
+            <if test="diseasecode != null">
+                and t.diseasecode = #{diseasecode}
+            </if>
+        </where>
+    </select>
+
+
+    <insert id="addProjectsettlement" parameterType="com.firesoon.drgs.dto.projectsettlement.Projectsettlement">
+   	 begin
+   	 	<if test="shenheyijiansh != null">
+   	 		delete from projectsettlement t
+   	 			where t.SHENHEYIJIANSH = #{shenheyijiansh,jdbcType=VARCHAR};
+   	 	</if>
+        INSERT into Projectsettlement VALUES (
+            #{id,            jdbcType=NUMERIC},
+			#{xuhao,         jdbcType=NUMERIC},
+			#{shenheyijiansh,jdbcType=VARCHAR},
+			#{jiaoyilsh,     jdbcType=VARCHAR},
+			#{danjuhao,      jdbcType=VARCHAR},
+			#{zhuyuanhao,    jdbcType=VARCHAR},
+			#{jiuyifs,       jdbcType=VARCHAR},
+			#{feiyongrq,     jdbcType=VARCHAR},
+			#{gerenbh,       jdbcType=VARCHAR},
+			#{canbaorenxm,   jdbcType=VARCHAR},
+			#{canbaolx,      jdbcType=VARCHAR},
+			#{keshi,         jdbcType=VARCHAR},
+			#{yishengxm,     jdbcType=VARCHAR},
+			#{xiangmubh,     jdbcType=VARCHAR},
+			#{xiangmumc,     jdbcType=VARCHAR},
+			#{shuliang,      jdbcType=DOUBLE},
+			#{leizhije,      jdbcType=DOUBLE},
+			#{kouchuje,      jdbcType=DOUBLE},
+			#{kouchuyy,      jdbcType=VARCHAR},
+			#{weifangzyy,    jdbcType=VARCHAR},
+			#{huankuanyy,    jdbcType=VARCHAR},
+			#{bak0,          jdbcType=VARCHAR},
+			#{bak1,          jdbcType=VARCHAR},
+			#{bak2,          jdbcType=VARCHAR},
+			#{bak3,          jdbcType=VARCHAR},
+			#{createdate,    jdbcType=TIMESTAMP},
+			#{updatedate,    jdbcType=TIMESTAMP},
+			#{operater,      jdbcType=VARCHAR},
+			#{delflag,       jdbcType=VARCHAR}
+        );
+       end;
+    </insert>
+
+
+
+    <select id="getFilterData" resultType="map">
+        select text, value, type from drgs_dictionary
+        <where>
+            <if test="type != null">
+                and type in (${type})
+            </if>
+        </where>
+    </select>
+</mapper>

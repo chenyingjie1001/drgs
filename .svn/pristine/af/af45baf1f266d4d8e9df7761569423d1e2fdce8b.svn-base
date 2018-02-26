@@ -1,0 +1,1790 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.firesoon.drgs.mapper.disease.MedicareMapper">
+
+    <sql id="chooseDatePre">
+        <choose>
+            <when test="dimension eq 'Hour'">
+                EXTRACT(HOUR FROM to_timestamp(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss')) || '时'
+            </when>
+            <when test="dimension == 'Day'">
+                <!-- EXTRACT(DAY FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss')) || '日' -->
+                to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM-dd') AS sign,
+                to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'MM')||'-'
+                ||to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'dd')
+            </when>
+            <when test="dimension == 'Week'">
+                to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'), 'YYYY')||'年第'||to_char(to_date(t.${isouttype},
+                'yyyy-MM-dd
+                hh24:mi:ss'), 'WW')||'周'
+            </when>
+            <when test="dimension == 'Month'">
+                EXTRACT(MONTH FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss')) || '月'
+            </when>
+            <when test="dimension == 'Year'">
+                EXTRACT(YEAR FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss')) || '年'
+            </when>
+        </choose>
+    </sql>
+
+    <sql id="chooseDateGroupBy">
+        <choose>
+            <when test="dimension == 'Hour'">
+                EXTRACT(HOUR FROM to_timestamp(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'))
+            </when>
+            <when test="dimension == 'Day'">
+                <!-- EXTRACT(DAY FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss')) -->
+                to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'MM')||'-'
+                ||to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'dd')
+                ,to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM-dd')
+            </when>
+            <when test="dimension == 'Week'">
+                to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'), 'YYYY')||'年第'||to_char(to_date(t.${isouttype},
+                'yyyy-MM-dd
+                hh24:mi:ss'), 'WW')||'周'
+            </when>
+            <when test="dimension == 'Month'">
+                EXTRACT(MONTH FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'))
+            </when>
+            <when test="dimension == 'Year'">
+                EXTRACT(YEAR FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'))
+            </when>
+        </choose>
+    </sql>
+
+    <sql id="chooseDateOrderBy">
+        <choose>
+            <when test="dimension == 'Hour'">
+                EXTRACT(HOUR FROM to_timestamp(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'))
+            </when>
+            <when test="dimension == 'Day'">
+                <!-- EXTRACT(DAY FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss')) -->
+                to_date(to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM-dd'),'yyyy-MM-dd')
+            </when>
+            <when test="dimension == 'Week'">
+                to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'), 'YYYY')||'年第'||to_char(to_date(t.${isouttype},
+                'yyyy-MM-dd
+                hh24:mi:ss'), 'WW')||'周'
+            </when>
+            <when test="dimension == 'Month'">
+                EXTRACT(MONTH FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'))
+            </when>
+            <when test="dimension == 'Year'">
+                EXTRACT(YEAR FROM to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'))
+            </when>
+        </choose>
+    </sql>
+
+
+    <select id="findDateReportChart" resultType="map">
+        select
+        <include refid="chooseDatePre"/>
+        AS name,
+        count(DISTINCT t.住院号) 病例数
+        from patient_accounting t
+        <where>
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="disease_code != null">
+                AND t.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND t.手术医保编码 = #{surgery_code}
+            </if>
+            <!--按小时统计的时候默认显示当前的12小时-->
+            <choose>
+                <when test="dimension == 'Hour'">
+                    AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= sysdate-12/24
+                </when>
+                <otherwise>
+                    <if test="startdate != null">
+                        AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd
+                        hh24:mi:ss')
+                    </if>
+                    <if test="enddate != null">
+                        <![CDATA[
+                        AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') + 1/24
+                        ]]>
+                    </if>
+                </otherwise>
+            </choose>
+
+        </where>
+        group by
+        <include refid="chooseDateGroupBy"/>
+        order by
+        <include refid="chooseDateOrderBy"/>
+    </select>
+
+
+    <select id="findMedicareDateReport" resultType="map">
+        <!-- select a.DISEASECODE 疾病编码,
+        a.DISEASENAME 疾病名称,
+        a.MEDICARECODE 手术医保编码,
+        a.MEDICARENAME 手术医保名称,
+        a.PAYMENT 支付标准,
+        nvl(b.杭州市妇产科医院例数, 0) 杭州市妇产科医院例数
+        from disease a LEFT OUTER JOIN
+        (select
+        t.疾病编码 疾病编码,
+        t.主诊断 疾病名称,
+        t.手术医保编码 手术医保编码,
+        t.主手术 手术医保名称,
+        avg(t.支付标准价) 支付标准,
+        nvl(count(1),0) as 杭州市妇产科医院例数
+        from patient_accounting t -->
+        SELECT t.疾病编码 疾病编码,
+        t.主诊断 疾病名称,
+        t.手术医保编码 手术医保编码,
+        t.主手术 手术医保名称,
+        avg(t.支付标准价) 支付标准,
+        nvl(count(distinct t.住院号), 0) AS 病例数
+        FROM (
+        select 住院号, 疾病编码, 主诊断, 手术医保编码, 主手术, avg(支付标准价) 支付标准价
+        from patient_accounting t
+
+        <where>
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="medicareType != null">
+                AND t.医保类别 in (${medicareType})
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="disease_code != null">
+                AND t.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND t.手术医保编码 = #{surgery_code}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.出院日期, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.出院日期, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') + 1/24
+                ]]>
+            </if>
+        </where>
+        group by 住院号, 疾病编码, 主诊断, 手术医保编码, 主手术
+        ) t
+        group by t.疾病编码, t.主诊断, t.手术医保编码, t.主手术
+
+        <!--  ) b on a.DISEASECODE = b.疾病编码 and a.MEDICARECODE = b.手术医保编码 -->
+        <choose>
+            <when test="order != null">
+                ORDER BY ${order}
+            </when>
+            <otherwise>
+                order by 病例数 DESC
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="getTitle" resultType="map">
+        WITH t as (
+        select
+        DRGS.疾病编码,
+        DRGS.主诊断 AS 疾病名称,
+        DRGS.手术医保编码,
+        DRGS.主手术 as 手术医保名称,
+        DRGS.支付标准价 AS 支付标准,
+        0.6*DRGS.支付标准价 as 百分之六十支付按标准起付最低价,
+        round(AVG(DRGS.所用医保费用+DRGS.盈利),2) AS 医院向医保申请可支取的均费,
+        sum(DRGS.盈利) AS 总盈亏,
+        COUNT(DISTINCT(DRGS.住院号)) AS 总人次,
+        round(AVG(DRGS.总费用),2) AS 总均费,
+        round(AVG(DRGS.CQ材料费),2) AS CQ类材料均费,
+        round(AVG(DRGS.CG材料费),2) AS CG类材料均费,
+        --round(AVG(DRGS.超限床位费),2) AS 超标床位均费,
+        round(AVG(DRGS.超限床位费),2) AS 超限床位均费,
+        round(AVG(DRGS.自理金额+DRGS.自费金额),2) as 个人自理自费均费,
+        round( AVG(DRGS.西药+DRGS.中成药+DRGS.中草药),2) as 药品均费,
+        round(AVG(DRGS.材料费+DRGS.自负材料费),2) as 耗材均费,
+        round(AVG(DRGS.手术费),2) as 手术费均费
+        from
+        patient_accounting DRGS
+        <where>
+            <if test="chargetype != null">
+                AND DRGS.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND DRGS.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND DRGS.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="disease_code != null">
+                AND DRGS.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND DRGS.手术医保编码 = #{surgery_code}
+            </if>
+
+            <if test="startdate != null">
+
+                AND to_date(DRGS.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd
+                hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(DRGS.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        GROUP BY DRGS.疾病编码,
+        DRGS.主诊断,
+        DRGS.手术医保编码,
+        DRGS.主手术,
+        DRGS.支付标准价
+        )
+        select nvl(sum(t.总盈亏), 0) 净盈亏,
+        nvl(sum(t.总人次), 0) 总病例,
+        count(1) 总病种,
+        nvl(max(case
+        when t.总盈亏 = (select min(总盈亏) from t) then
+        t.疾病名称 ||'/'|| t.手术医保名称
+        end), '无') 最大亏损病种,
+        nvl(max(case
+        when t.总盈亏 = (select max(总盈亏) from t) then
+        t.疾病名称 ||'/'|| t.手术医保名称
+        end), '无') 最大盈利病种
+        from t
+    </select>
+
+    <select id="getTitleMsg" resultType="map">
+        WITH t AS (
+        select t.*,t2.住院号 as 实际退出病例数, t3.交易流水号, t3.项目结算扣款 FROM patient_accounting t
+        left outer join drgs.out_medicare t2 on t.住院号 = t2.住院号
+        left outer join (select 交易流水号, sum(扣除金额) 项目结算扣款
+        from projectsettlementview
+        group by 交易流水号) t3 on t.交易流水号 = t3.交易流水号
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="disease_code != null">
+                AND t.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND t.手术医保编码 = #{surgery_code}
+            </if>
+
+            <if test="startdate != null">
+
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        )
+        <![CDATA[
+         SELECT nvl(sum(case
+                 when t.盈利 < 0 then
+                  t.盈利
+                 else
+                  0
+               end),
+           0) 亏金额,
+       nvl(sum(case
+                 when t.盈利 > 0 then
+                  t.盈利
+                 else
+                  0
+               end),
+           0) 盈利额,
+       nvl(max(case
+                 when t.盈利 = (select min(盈利) from t) then
+                  t.住院号
+               end),
+           '无') 最大亏损病例住院号,
+       nvl(max(case
+                 when t.盈利 = (select max(盈利) from t) then
+                  t.住院号
+               end),
+           '无') 最大盈利病例住院号,
+       nvl(count(DISTINCT(case
+                            when t.盈亏标识 = 0 then
+                             t.疾病编码 || t.手术医保编码
+                          end)),
+           0) 亏损病种数,
+       nvl(count(DISTINCT(case
+                            when t.盈亏标识 = 1 then
+                             t.疾病编码 || t.手术医保编码
+                          end)),
+           0) 盈利病种数,
+       nvl(count(DISTINCT(case
+                            when t.盈亏标识 = 2 then
+                             t.疾病编码 || t.手术医保编码
+                          end)),
+           0) 实付病种数,
+       nvl(count(DISTINCT(case
+                            when t.盈亏标识 = 0 then
+                             t.住院号
+                          end)),
+           0) 亏损病例数,
+       nvl(sum(case
+                 when t.盈亏标识 = 0 then
+                  (t.支付标准价 + t.CG材料费 + t.CQ材料费 + t.超限床位费 - t.自理金额 - t.自费金额  - t.自负金额 )
+                 else
+                  0
+               end),
+           0) 亏损定额结算金额,
+       nvl(count(DISTINCT(case
+                            when t.盈亏标识 = 1 then
+                             t.住院号
+                          end)),
+           0) 盈利病例数,
+       nvl(sum(case
+                 when t.盈亏标识 = 1 then
+                  (t.支付标准价 + t.CG材料费 + t.CQ材料费 + t.超限床位费 - t.自理金额 - t.自费金额  - t.自负金额 )
+                 else
+                  0
+               end),
+           0) 盈利定额结算金额,
+       nvl(count(DISTINCT(case
+                            when t.盈亏标识 = 2 then
+                             t.住院号
+                          end)),
+           0) 实付病例数,
+       nvl(sum(case
+                 when t.盈亏标识 = 2 then
+                  (t.支付标准价 + t.CG材料费 + t.CQ材料费 + t.超限床位费 - t.自理金额 - t.自费金额  - t.自负金额)
+                 else
+                  0
+               end),
+           0) 实付定额结算金额,
+       nvl(sum(t.支付标准价 + t.CG材料费 + t.CQ材料费 + t.超限床位费 - t.自理金额 - t.自费金额 - t.自负金额 ),
+           0) 定额结算金额,
+       nvl(floor(count(DISTINCT(t.住院号)) * 0.15), 0) 可申请退出病例数,
+       nvl(sum(t.所用医保费用),0 ) 项目结算金额,
+        nvl(sum(t.项目结算扣款),0) 项目扣款金额,
+       -- nvl(sum(t.支付标准价 + t.CG材料费 + t.CQ材料费 + t.超限床位费 - t.自理金额 - t.自费金额  - t.自负金额 -t.所用医保费用+t.项目结算扣款),0) 盈亏结算金额,
+       nvl(sum(t.支付标准价 + t.CG材料费 + t.CQ材料费 + t.超限床位费 - t.自理金额 - t.自费金额 - t.自负金额 ),0) - nvl(sum(t.所用医保费用),0 ) -  nvl(sum(t.项目结算扣款),0) 盈亏结算金额,
+       count(DISTINCT t.实际退出病例数) 实际退出病例数
+  FROM t
+        ]]>
+    </select>
+
+    <select id="getTitleDate" resultType="map">
+        select to_char(min(t.jifeirq), 'yyyy-MM-dd') 开始时间,
+        to_char(max(t.jifeirq), 'yyyy-MM-dd') 结束时间
+        from model.agg_medicalinsurance_drgs t
+        <where>
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+        </where>
+    </select>
+
+    <select id="getMedicares" resultType="map">
+
+        select * from (
+        select
+        DRGS.疾病编码,
+        DRGS.主诊断 AS 疾病名称,
+        DRGS.手术医保编码,
+        DRGS.主手术 as 手术医保名称,
+        DRGS.支付标准价 AS 支付标准,
+        0.6*DRGS.支付标准价 as "支付标准60%",
+        round(AVG(DRGS.所用医保费用+DRGS.盈利),2) AS 所用医保均费,
+        sum(DRGS.盈利) AS 病种总盈亏,
+        COUNT(DISTINCT(DRGS.住院号)) AS 总病例数,
+        round(sum(DRGS.盈利)/COUNT(DISTINCT(DRGS.住院号)), 2) AS 病例均盈亏,
+        round(AVG(DRGS.总费用),2) AS 病例医疗均费,
+        round(AVG(DRGS.CQ材料费),2) AS CQ类材料均费,
+        round(AVG(DRGS.CG材料费),2) AS CG类材料均费,
+        --round(AVG(DRGS.超限床位费),2) AS 超标床位均费,
+        round(AVG(DRGS.超限床位费),2) AS 超限床位均费,
+        --round(AVG(DRGS.自理金额+DRGS.自费金额),2) as 个人自理自费均费,
+        round(AVG(DRGS.自理金额),2) as 病例自理均费,
+        round(AVG(DRGS.自费金额),2) as 病例自费均费,
+        round(AVG(DRGS.自负金额),2) as 病例自负均费,
+        round( AVG(DRGS.西药+DRGS.中成药+DRGS.中草药),2) as 药品均费,
+        round(AVG(DRGS.材料费+DRGS.自负材料费),2) as 耗材均费,
+        round(AVG(DRGS.手术费),2) as 手术费均费
+        from
+        patient_accounting DRGS
+        <where>
+            <if test="disease_code != null">
+                and DRGS.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                and DRGS.手术医保编码 = #{surgery_code}
+            </if>
+            <if test="chargetype != null">
+                AND DRGS.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND DRGS.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="startdate != null">
+                AND to_date(DRGS.出院日期, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(DRGS.出院日期, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        GROUP BY DRGS.疾病编码,
+        DRGS.主诊断,
+        DRGS.手术医保编码,
+        DRGS.主手术,
+        DRGS.支付标准价
+        ) t
+        <where>
+            <if test="title != null">
+                AND (疾病编码 like '%${title}%' or
+                疾病名称 like '%${title}%' or
+                手术医保编码 like '%${title}%' or
+                手术医保名称 like '%${title}%')
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+        </where>
+        order by ${order}
+
+    </select>
+
+    <select id="getDetail" resultType="map">
+        select t.${title},
+        round(avg(t.支付标准价),2) 支付标准,
+        round(avg(t.支付标准价) * 0.6,2) "支付标准60%",
+        round(AVG(t.所用医保费用+t.盈利),2) AS 所用医保均费,
+        sum(t.盈利) AS 病种总盈亏,
+        COUNT(DISTINCT(t.住院号)) AS 总病例数,
+        round(AVG(t.总费用), 2) AS 病例医疗均费,
+        round(sum(t.盈利)/COUNT(DISTINCT(t.住院号)), 2) AS 病例均盈亏,
+        round(AVG(t.CQ材料费), 2) AS CQ类材料均费,
+        round(AVG(t.CG材料费), 2) AS CG类材料均费,
+        round(AVG(t.超限床位费), 2) AS 超限床位均费,
+        round(AVG(t.自理金额),2) as 病例自理均费,
+        round(AVG(t.自费金额),2) as 病例自费均费,
+        round(AVG(t.自负金额),2) as 病例自负均费,
+        round(AVG(t.西药 + t.中成药 + t.中草药), 2) as 药品均费,
+        round(AVG(t.材料费 + t.自负材料费), 2) as 耗材均费,
+        round(AVG(t.手术费), 2) as 手术费均费
+        from patient_accounting t
+        <!-- 20171209添加 -->
+        <!-- where t.疾病编码 = #{disease_code} and t.手术医保编码 = #{surgery_code} -->
+        <where>
+            t.疾病编码 = #{disease_code} and t.手术医保编码 = #{surgery_code}
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+
+        group by t.${title}
+        order by ${order}
+    </select>
+
+    <select id="getDetailMsg" resultType="map">
+        <!-- select t.*,
+        (t.西药 + t.中成药 + t.中草药) as 药品费,(t.材料费 + t.自负材料费) AS 耗材费, 盈利 剩余可用医保金额
+        from patient_accounting t -->
+        select * FROM DetailMsg t
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="title != null and title_value != null">
+                AND ${title} = #{title_value}
+            </if>
+            <if test="disease_code != null">
+                AND t.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND t.手术医保编码 = #{surgery_code}
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+        </where>
+        order by ${order}
+    </select>
+
+    <select id="costMonitoring" parameterType="map" resultType="map">
+        <!-- SELECT * FROM (
+        select t.*,
+        (t.西药 + t.中成药 + t.中草药) as 药品费,(t.材料费 + t.自负材料费) AS 耗材费, t.盈利 剩余可用医保金额,
+        case when t2.住院号 is not null then '已退出' else '未退出' end as 状态
+        from patient_accounting t left outer join drgs.out_medicare t2 on t.住院号 = t2.住院号
+        ) t -->
+        select * from costmonitoring t
+        <where>
+            <if test="title != null">
+                AND (
+                t.病人姓名 like '%${title}%' or
+                t.医保类别 like '%${title}%' or
+                t.参保类型 like '%${title}%' or
+                t.住院号 like '%${title}%' or
+                t.疾病编码 like '%${title}%' or
+                t.主诊断 like '%${title}%' or
+                t.手术医保编码 like '%${title}%' or
+                t.主手术 like '%${title}%' or
+                t.科室 like '%${title}%' or
+                t.主治医生 like '%${title}%' or
+                t.盈利 like '${title}'
+                )
+            </if>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+            <if test="screen != null and screen.size > 0">
+                AND (
+                <foreach collection="screen" item="item">
+                    ${item.name} ${item.value} or
+                </foreach>
+                1 = 2 )
+            </if>
+        </where>
+        order by t.${order}
+    </select>
+
+    <select id="findcolType" resultType="map" parameterType="string">
+      select COLUMN_NAME as COLUMN_NAME,DATA_TYPE as DATA_TYPE 
+      	from user_tab_cols
+      		where table_name = upper('${_parameter}') ORDER BY column_id
+    </select>
+    <!--出院在院的病例数统计pie -->
+    <!-- <select id="findPerHospitalReportPieChart" resultType="map">
+        select case when t.控费类型 = 1 then '控费诊断+控费手术'
+        WHEN t.控费类型 = 2 then '控费诊断+非控费手术'
+        WHEN t.控费类型 = 3 then '非控费诊断+控费手术'
+        WHEN t.控费类型 = 4 then '非控费诊断+非控费手术' ELSE '' END AS item, count(1) AS COUNT
+        from patient_accounting t
+        <where>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+        </where>
+        group by t.控费类型
+    </select> -->
+    <select id="findPerHospitalReportPieChart" resultType="map">
+        select * from
+        (
+        select
+        count(distinct(case when t.控费类型 = 1 then t.住院号 end)) "控费主诊断+控费主手术",
+        count(distinct(case when t.控费类型 = 2 then t.住院号 end)) "控费主诊断+非控费主手术",
+        count(distinct(case when t.控费类型 = 3 then t.住院号 end)) "非控费主诊断+控费主手术",
+        count(distinct(case when t.控费类型 = 4 then t.住院号 end)) "非控费诊断+非控费手术"
+        from (
+        <!--  -->
+        select t.控费类型 , t.住院号
+        from patient_accounting t
+        <!--  -->
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        group by t.住院号,t.控费类型
+        ) t
+        )
+        unpivot (count for item in ("控费主诊断+控费主手术","控费主诊断+非控费主手术","非控费主诊断+控费主手术","非控费诊断+非控费手术") )
+    </select>
+    <!--出院在院的病例数统计 -->
+    <select id="findPerHospitalReportChart" resultType="map">
+        select
+        <include refid="chooseDatePre"/>
+        AS name,
+        count(distinct(case when t.控费类型 = 1 then t.住院号 end)) doublecontrol,
+        count(distinct(case when t.控费类型 = 2 then t.住院号 end)) "控费诊断+非控费手术",
+        count(distinct(case when t.控费类型 = 3 then t.住院号 end)) "非控费诊断+控费手术",
+        count(distinct(case when t.控费类型 = 4 then t.住院号 end)) "非控费诊断+非控费手术"
+        from patient_accounting t
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="disease_code != null">
+                AND t.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND t.手术医保编码 = #{surgery_code}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        group by
+        <include refid="chooseDateGroupBy"/>
+        order by
+        <include refid="chooseDateOrderBy"/>
+    </select>
+
+    <!--出院在院的费用统计 -->
+    <select id="findCostHospitalReportPieChart" resultType="map">
+        <!-- select case when t.控费类型 = 1 then '控费诊断+控费手术'
+        WHEN t.控费类型 = 2 then '控费诊断+非控费手术'
+        WHEN t.控费类型 = 3 then '非控费诊断+控费手术'
+        WHEN t.控费类型 = 4 then '非控费诊断+非控费手术' ELSE '' END AS item,
+        sum(t.总费用) AS COUNT
+        from patient_accounting t
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            
+             <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+            
+        </where>
+        group by t.控费类型 -->
+        select * from
+        (
+        select
+        sum(case when t.控费类型 = 1 then t.总费用 else 0 end) "控费主诊断+控费主手术",
+        sum(case when t.控费类型 = 2 then t.总费用 else 0 end) "控费主诊断+非控费主手术",
+        sum(case when t.控费类型 = 3 then t.总费用 else 0 end) "非控费主诊断+控费主手术",
+        sum(case when t.控费类型 = 4 then t.总费用 else 0 end) "非控费诊断+非控费手术"
+        from patient_accounting t
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+
+        </where>
+        )
+        unpivot (count for item in ("控费主诊断+控费主手术","控费主诊断+非控费主手术","非控费主诊断+控费主手术","非控费诊断+非控费手术") )
+
+    </select>
+    <!--出院在院的费用统计pie -->
+    <select id="findCostHospitalReportChart" resultType="map">
+        select
+        <include refid="chooseDatePre"/>
+        AS name,
+        sum(case when t.控费类型 = 1 then t.总费用 else 0 end) doublecontrol,
+        sum(case when t.控费类型 = 2 then t.总费用 else 0 end) "控费诊断+非控费手术",
+        sum(case when t.控费类型 = 3 then t.总费用 else 0 end) "非控费诊断+控费手术",
+        sum(case when t.控费类型 = 4 then t.总费用 else 0 end) "非控费诊断+非控费手术"
+        from patient_accounting t
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="disease_code != null">
+                AND t.疾病编码 = #{disease_code}
+            </if>
+            <if test="surgery_code != null">
+                AND t.手术医保编码 = #{surgery_code}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        group by
+        <include refid="chooseDateGroupBy"/>
+        order by
+        <include refid="chooseDateOrderBy"/>
+    </select>
+
+    <select id="findMedicareSettlementList" resultType="map">
+        select
+        to_char(to_date(t.出院日期, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM')||'-01' startdate,
+        max(to_char(last_day(to_date(t.出院日期, 'yyyy-MM-dd hh24:mi:ss')), 'yyyy-MM-dd')) enddate,
+        to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM') 统计时间,
+        sum(t.支付标准价+t.CG材料费+t.CQ材料费+t.超限床位费- t.自理金额-t.自费金额) 医保结算金额 ,
+        count(1) 总病例,
+        count(distinct(case when t.盈亏标识 = 0 then t.住院号 end)) 亏损病例数,
+        sum(case when t.盈亏标识 = 0 then (t.支付标准价+t.CG材料费+t.CQ材料费+t.超限床位费- t.自理金额-t.自费金额) else 0 end) 亏损医保结算金额,
+        count(distinct(case when t.盈亏标识 = 1 then t.住院号 end)) 盈利病例数,
+        sum(case when t.盈亏标识 = 1 then (t.支付标准价+t.CG材料费+t.CQ材料费+t.超限床位费- t.自理金额-t.自费金额) else 0 end) 盈利医保结算金额,
+        count(distinct(case when t.盈亏标识 = 2 then t.住院号 end)) 实付病例数,
+        sum(case when t.盈亏标识 = 2 then (t.支付标准价+t.CG材料费+t.CQ材料费+t.超限床位费- t.自理金额-t.自费金额) else 0 end) 实付医保结算金额,
+        floor(count(distinct t.住院号)*0.15) 可申请退出病例数,
+        count(distinct t2.住院号) 实际退出病例数
+        from patient_accounting t left outer join drgs.out_medicare t2
+        on t.住院号 = t2.住院号
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <!-- 年月筛选器使用 -->
+            <if test="startdate != null">
+                and to_date(t.${isouttype},'yyyy-MM-dd hh24:mi:ss')
+                >= to_date('${startdate}', 'yyyy-MM')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+            	and to_date(t.${isouttype},'yyyy-MM-dd hh24:mi:ss')
+            		<= add_months(to_date('${enddate}', 'yyyy-MM'),1) - (1/(24*60*60))
+            		]]>
+            </if>
+            <!-- 年月筛选器使用 -->
+        </where>
+        group by to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM')
+    </select>
+
+    <insert id="insertOutMedicare" parameterType="map">
+        insert into out_medicare (
+        病人id, 病人姓名, 医保类别, 参保类型, 住院号, 疾病编码,
+        主诊断, 手术医保编码, 主手术, 院内疾病编码, 院内主诊断,
+        院内手术医保编码, 院内主手术,科室, 医疗小组, 主治医生,
+        床位号, 最后费用日期, 入院日期, 出院日期, 支付标准价,
+        cq材料费, cg材料费, 总费用, 所用医保费用, 自理金额,
+        自费金额, 超限床位费, 西药, 中成药, 中草药,
+        检查费, 治疗费, 手术费, 化验费, 其他费用,
+        输血费, 输氧费, 诊疗费, ct片, mri片,
+        床位费, 婴儿费, 护理费, 放疗费, 自负材料费,
+        材料费, 麻醉费, 注射费, 新生儿筛查, 院前120急救费,
+        除去超限床位费, 病种比例, 盈亏标识, 盈利, 当前状态,
+        控费类型, 退出原因, 交易流水号, 自负金额
+        ) SELECT
+        病人id, 病人姓名, 医保类别, 参保类型, 住院号, 疾病编码,
+        主诊断, 手术医保编码, 主手术, 院内疾病编码, 院内主诊断,
+        院内手术医保编码, 院内主手术,科室, 医疗小组, 主治医生,
+        床位号, 最后费用日期, 入院日期, 出院日期, 支付标准价,
+        cq材料费, cg材料费, 总费用, 所用医保费用, 自理金额,
+        自费金额, 超限床位费, 西药, 中成药, 中草药,
+        检查费, 治疗费, 手术费, 化验费, 其他费用,
+        输血费, 输氧费, 诊疗费, ct片, mri片,
+        床位费, 婴儿费, 护理费, 放疗费, 自负材料费,
+        材料费, 麻醉费, 注射费, 新生儿筛查, 院前120急救费,
+        除去超限床位费, 病种比例, 盈亏标识, 盈利, 当前状态,
+        控费类型,
+        <choose>
+            <when test="reason != null">
+                #{reason}
+            </when>
+            <otherwise>
+                null
+            </otherwise>
+        </choose>
+       	, 交易流水号, 自负金额
+        FROM patient_accounting t WHERE t.住院号 IN (${hospital_code})
+    </insert>
+
+    <select id="findCostHospitalReportForm" resultType="map">
+        select t.${title},
+        sum(case when t.控费类型 = 1 then 1 else 0 end) "控费诊断+控费手术病例数",
+        sum(case when t.控费类型 = 2 then 1 else 0 end) "控费诊断+非控费手术病例数",
+        sum(case when t.控费类型 = 3 then 1 else 0 end) "非控费诊断+控费手术病例数",
+        sum(case when t.控费类型 = 4 then 1 else 0 end) "非控费诊断+非控费手术病例数",
+        round(((sum(case when t.控费类型 = 1 then 1 else 0 end))/count(1)),2)*100||'%' "控费诊断+控费手术病例数比例"
+        from (
+        <!--  -->
+        select t.${title},t.控费类型
+        from patient_accounting t
+        <!--  -->
+
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="department != null">
+                AND t.科室 = #{department}
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        group by t.${title},t.住院号,t.控费类型
+        ) t
+        group by t.${title}
+        order by t.${order}
+    </select>
+
+
+    <select id="findCostHospitalReportTotalCostForm" resultType="map">
+        select t.${title},
+        sum(case when t.控费类型 = 1 then t.总费用 else 0 end) "控费诊断+控费手术总费用",
+        sum(case when t.控费类型 = 2 then t.总费用 else 0 end) "控费诊断+非控费手术总费用",
+        sum(case when t.控费类型 = 3 then t.总费用 else 0 end) "非控费诊断+控费手术总费用",
+        sum(case when t.控费类型 = 4 then t.总费用 else 0 end) "非控费诊断+非控费手术总费用",
+        round(((sum(case when t.控费类型 = 1 then t.总费用 else 0 end))/sum(t.总费用)),2)*100||'%' "控费诊断+控费手术总费用比例"
+        from patient_accounting t
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="department != null">
+                AND t.科室 = #{department}
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+        group by t.${title}
+        order by t.${order}
+    </select>
+
+
+    <select id="findFeiKongFeiTZ" resultType="map">
+        <!-- select t.*,(t.西药 + t.中成药 + t.中草药) as 药品费,(t.材料费 + t.自负材料费) AS 耗材费, t.盈利 剩余可用医保金额  
+        from patient_accounting t  -->
+        select * FROM feikongfeitzdata t
+        <where>
+            <!-- and not exists (select 1 from noncontrolup m where m.住院号 = t.住院号) -->
+            <if test="title != null">
+                AND (
+                t.病人姓名 like '%${title}%' or
+                t.医保类别 like '%${title}%' or
+                t.参保类型 like '%${title}%' or
+                t.住院号 like '%${title}%' or
+                t.疾病编码 like '%${title}%' or
+                t.主诊断 like '%${title}%' or
+                t.手术医保编码 like '%${title}%' or
+                t.主手术 like '%${title}%' or
+                t.科室 like '%${title}%' or
+                t.主治医生 like '%${title}%' or
+                t.盈利 like '${title}' or
+                t.院内疾病编码 like '${title}' or
+                t.院内主诊断 like '${title}' or
+                t.院内手术医保编码 like '${title}' or
+                t.院内主手术 like '${title}'
+                )
+            </if>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+        </where>
+        order by ${order}
+    </select>
+
+
+    <select id="findZhiFuBZ" resultType="map">
+        select t.id,t.diseasecode,t.diseasename,t.medicarecode,t.medicarename,t.payment from disease t
+        <where>
+            <if test="code != null">
+                and t.diseasecode = #{code} or t.medicarecode = #{code}
+            </if>
+        </where>
+    </select>
+
+    <update  id="saveFeiKongFeiTZ">
+    	begin
+    		update noncontrolup t set t.启用状态标识= 0 where t.住院号 = #{hospital_code};
+    		insert into NONCONTROLUP
+    		( 
+    		病人ID,交易流水号,自负金额,
+    		病人姓名, 医保类别, 参保类型, 住院号, 疾病编码,
+    		主诊断, 手术医保编码, 主手术, 院内疾病编码, 院内主诊断, 院内手术医保编码,
+    		院内主手术, 科室, 医疗小组, 主治医生, 床位号,
+    		最后费用日期, 入院日期, 出院日期, 支付标准价, CQ材料费,
+    		CG材料费, 总费用, 所用医保费用, 自理金额, 自费金额,
+    		超限床位费, 西药, 中成药, 中草药, 检查费,
+    		治疗费, 手术费, 化验费, 其他费用, 输血费,
+    		输氧费, 诊疗费, CT片, MRI片, 床位费,
+    		婴儿费, 护理费, 放疗费, 自负材料费, 材料费,
+    		麻醉费, 注射费, 新生儿筛查, 院前120急救费, 除去超限床位费,
+    		病种比例, 盈亏标识, 盈利, 当前状态, 控费类型,
+    		调整原因, 调整后院内疾病编码, 调整后院内主诊断, 调整后院内手术医保编码,
+    		调整后院内主手术, 调整者, MODIFYTIME, 调整后支付标准价, 调整后盈利,
+    		启用状态标识
+    		) SELECT
+    		病人ID,交易流水号,自负金额,
+    		病人姓名, 医保类别, 参保类型, 住院号, 疾病编码, 
+    		主诊断, 手术医保编码, 主手术, 院内疾病编码, 院内主诊断, 院内手术医保编码, 
+    		院内主手术, 科室, 医疗小组, 主治医生, 床位号, 
+    		最后费用日期, 入院日期, 出院日期, 支付标准价, CQ材料费, 
+    		CG材料费, 总费用, 所用医保费用, 自理金额, 自费金额, 
+    		超限床位费, 西药, 中成药, 中草药, 检查费, 
+    		治疗费, 手术费, 化验费, 其他费用, 输血费, 
+    		输氧费, 诊疗费, CT片, MRI片, 床位费, 
+    		婴儿费, 护理费, 放疗费, 自负材料费, 材料费, 
+    		麻醉费, 注射费, 新生儿筛查, 院前120急救费, 除去超限床位费, 
+    		病种比例, 盈亏标识, 盈利, 当前状态, 控费类型, 
+    		控费类型
+    		<choose>
+    			<when test="ynzhuzhenduanbm != null">
+    				,#{ynzhuzhenduanbm}
+    			</when>
+    			<otherwise>
+    				,null
+    			</otherwise>
+    		</choose>
+    		<choose>
+    			<when test="ynzhuzhenduanmc != null">
+    				,#{ynzhuzhenduanmc}
+    			</when>
+    			<otherwise>
+    				,null
+    			</otherwise>
+    		</choose>
+    		<choose>
+    			<when test="ynzhushoushubm != null">
+    				,#{ynzhushoushubm}
+    			</when>
+    			<otherwise>
+    				,null
+    			</otherwise>
+    		</choose>
+    		<choose>
+    			<when test="ynzhushoushumc != null">
+    				,#{ynzhushoushumc}
+    			</when>
+    			<otherwise>
+    				,null
+    			</otherwise>
+    		</choose>
+    		<choose>
+    			<when test="user != null">
+    				,#{user}
+    			</when>
+    			<otherwise>
+    				,null
+    			</otherwise>
+    		</choose>
+    		, sysdate, #{zhufubz}, #{yingli}
+    		, 1
+    		 FROM patient_accounting t WHERE t.住院号 = #{hospital_code};
+    	end;
+    </update>
+
+    <select id="getFeiKongFeiTitle1" resultType="map">
+        select nvl(count(distinct t.住院号),0) 调整病例数, nvl(sum(t.调整后盈利),0) 调整后盈利
+        from noncontrolup t
+        <where>
+            t.启用状态标识 = 1
+            <if test="chargetype != null">
+                AND t.调整原因 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+    </select>
+
+    <select id="getFeiKongFeiTitle2" resultType="map">
+        select count(1) 总病例 from (
+        select 住院号 from patient_accounting p
+        <where>
+            <if test="chargetype != null">
+                AND p.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                		AND p.医保类别 <> '现金'
+                		]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND p.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(p.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                		AND to_date(p.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                		]]>
+            </if>
+        </where>
+        group by 住院号
+        ) p
+    </select>
+
+
+    <select id="findNoSettledPatient" resultType="map">
+        with t as (
+        SELECT * from patient_accounting e
+        <where>
+            <!-- 年月筛选器使用 -->
+            <if test="startdate != null">
+                and (to_date(e.出院日期,'yyyy-MM-dd hh24:mi:ss') >= to_date('${startdate}', 'yyyy-MM')
+                or to_date(e.入院日期,'yyyy-MM-dd hh24:mi:ss') >= to_date('${startdate}', 'yyyy-MM'))
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+            	and (to_date(e.出院日期,'yyyy-MM-dd hh24:mi:ss') <= add_months(to_date('${enddate}', 'yyyy-MM'),1) - (1/(24*60*60))
+            	or to_date(e.入院日期,'yyyy-MM-dd hh24:mi:ss') <= add_months(to_date('${enddate}', 'yyyy-MM'),1) - (1/(24*60*60)))
+            		]]>
+            </if>
+            <!-- 年月筛选器使用 -->
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND e.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="chargetype != null">
+                AND e.控费类型 = #{chargetype}
+            </if>
+        </where>
+        ),
+        a as (select t.病人ID from t group by t.病人ID having count(1)>1),
+        b as (select t1.病人ID, max(t1.入院日期) 入院日期 from t t1 where exists (select 1 from a where a.病人ID = t1.病人ID) and
+        t1.当前状态 = '在院' group by t1.病人ID),
+        c as (select t2.病人ID, max(t2.出院日期) 出院日期 from t t2 where exists (select 1 from a where a.病人ID = t2.病人ID) and
+        t2.当前状态 = '出院' group by t2.病人ID),
+        <![CDATA[
+        d as (select b.病人ID, b.入院日期 最近入院日期, c.出院日期 最近出院日期 from b, c where b.病人ID = c.病人ID and to_date(b.入院日期, 'yyyy-MM-dd hh24:mi:ss') - to_date(c.出院日期, 'yyyy-MM-dd hh24:mi:ss') <= 15)
+        ]]>
+        select e.*, d.上次住院号, d.上次出院日期 from t e , d
+        WHERE e.病人ID = d.病人ID and e.入院日期 = d.最近入院日期
+        <if test="filter != null">
+            <foreach collection="filter" item="item">
+                AND ${item.name} in (${item.value})
+            </foreach>
+        </if>
+        <choose>
+            <when test="order != null">
+                ORDER BY e.${order}
+            </when>
+            <otherwise>
+                order by e.最后费用日期
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="findNoSettledPatientTitle" resultType="map">
+        with t as (
+        SELECT * from patient_accounting e
+        <where>
+            <!-- 年月筛选器使用 -->
+            <if test="startdate != null">
+                and (to_date(e.出院日期,'yyyy-MM-dd hh24:mi:ss') >= to_date('${startdate}', 'yyyy-MM')
+                or to_date(e.入院日期,'yyyy-MM-dd hh24:mi:ss') >= to_date('${startdate}', 'yyyy-MM'))
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+            	and (to_date(e.出院日期,'yyyy-MM-dd hh24:mi:ss') <= add_months(to_date('${enddate}', 'yyyy-MM'),1) - (1/(24*60*60))
+            	or to_date(e.入院日期,'yyyy-MM-dd hh24:mi:ss') <= add_months(to_date('${enddate}', 'yyyy-MM'),1) - (1/(24*60*60)))
+            		]]>
+            </if>
+            <!-- 年月筛选器使用 -->
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND e.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="chargetype != null">
+                AND e.控费类型 = #{chargetype}
+            </if>
+        </where>
+        ),
+        a as (select t.病人ID from t group by t.病人ID having count(1)>1),
+        b as (select t1.病人ID, max(t1.入院日期) 入院日期 from t t1 where exists (select 1 from a where a.病人ID = t1.病人ID) and
+        t1.当前状态 = '在院' group by t1.病人ID),
+        c as (select t2.病人ID, max(t2.出院日期) 出院日期 from t t2 where exists (select 1 from a where a.病人ID = t2.病人ID) and
+        t2.当前状态 = '出院' group by t2.病人ID),
+        <![CDATA[
+        d as (select b.病人ID, b.入院日期 最近入院日期, c.出院日期 最近出院日期 from b, c where b.病人ID = c.病人ID and to_date(b.入院日期, 'yyyy-MM-dd hh24:mi:ss') - to_date(c.出院日期, 'yyyy-MM-dd hh24:mi:ss') <= 15)
+        ]]>
+        select nvl(sum(e.所用医保费用), 0) 总亏损, count(1) 总病例 from t e , d
+        WHERE e.病人ID = d.病人ID and e.出院日期 = d.最近出院日期
+        <if test="filter != null">
+            <foreach collection="filter" item="item">
+                AND ${item.name} in (${item.value})
+            </foreach>
+        </if>
+        <choose>
+            <when test="order != null">
+                ORDER BY e.${order}
+            </when>
+            <otherwise>
+                order by e.最后费用日期
+            </otherwise>
+        </choose>
+    </select>
+
+    <select id="downloadKongFeiBLS" resultType="map">
+        select * FROM (
+        select t.科室, '小计' as 医疗小组,
+        sum(case when t.控费类型 = 1 then 1 else 0 end) "控费诊断+控费手术病例数",
+        sum(case when t.控费类型 = 2 then 1 else 0 end) "控费诊断+非控费手术病例数",
+        sum(case when t.控费类型 = 3 then 1 else 0 end) "非控费诊断+控费手术病例数",
+        sum(case when t.控费类型 = 4 then 1 else 0 end) "非控费诊断+非控费手术病例数",
+        round(((sum(case when t.控费类型 = 1 then 1 else 0 end))/count(1)),2)*100||'%' "控费诊断+控费手术病例数比例"
+        from (
+        select t.科室,t.控费类型
+        from patient_accounting t
+        <include refid="whereFordownloadKongFei"/>
+        <!-- <![CDATA[
+        where t.医保类别 <> '现金' and  t.当前状态 = '出院'
+        ]]> -->
+        group by t.科室,t.住院号,t.控费类型
+        ) t
+        group by t.科室
+        union all
+        --select max(t.科室) 科室,min(t.科室),t.医疗小组,
+        select t.科室,t.医疗小组,
+        sum(case when t.控费类型 = 1 then 1 else 0 end) "控费诊断+控费手术病例数",
+        sum(case when t.控费类型 = 2 then 1 else 0 end) "控费诊断+非控费手术病例数",
+        sum(case when t.控费类型 = 3 then 1 else 0 end) "非控费诊断+控费手术病例数",
+        sum(case when t.控费类型 = 4 then 1 else 0 end) "非控费诊断+非控费手术病例数",
+        round(((sum(case when t.控费类型 = 1 then 1 else 0 end))/count(1)),2)*100||'%' "控费诊断+控费手术病例数比例"
+        from (
+        select t.医疗小组,t.控费类型,t.科室
+        from patient_accounting t
+        <include refid="whereFordownloadKongFei"/>
+        <!-- <![CDATA[
+        where t.医保类别 <> '现金' and  t.当前状态 = '出院'
+        ]]> -->
+        group by t.医疗小组,t.住院号,t.控费类型,t.科室
+        ) t
+        group by t.医疗小组,t.科室
+
+        )
+        -- order by 科室,case when 医疗小组='小计' then null else 医疗小组 end
+        order by 科室,replace(医疗小组,'小计',null) desc
+    </select>
+
+    <select id="downloadKongFeiZFY" resultType="map">
+        select * from (
+        select t.科室, '小计' 医疗小组,
+        sum(case when t.控费类型 = 1 then t.总费用 else 0 end) "控费诊断+控费手术总费用",
+        sum(case when t.控费类型 = 2 then t.总费用 else 0 end) "控费诊断+非控费手术总费用",
+        sum(case when t.控费类型 = 3 then t.总费用 else 0 end) "非控费诊断+控费手术总费用",
+        sum(case when t.控费类型 = 4 then t.总费用 else 0 end) "非控费诊断+非控费手术总费用",
+        round(((sum(case when t.控费类型 = 1 then t.总费用 else 0 end))/sum(t.总费用)),2)*100||'%' "控费诊断+控费手术总费用比例"
+        from patient_accounting t
+        <include refid="whereFordownloadKongFei"/>
+        group by t.科室
+        union all
+        select t.科室,t.医疗小组,
+        sum(case when t.控费类型 = 1 then t.总费用 else 0 end) "控费诊断+控费手术总费用",
+        sum(case when t.控费类型 = 2 then t.总费用 else 0 end) "控费诊断+非控费手术总费用",
+        sum(case when t.控费类型 = 3 then t.总费用 else 0 end) "非控费诊断+控费手术总费用",
+        sum(case when t.控费类型 = 4 then t.总费用 else 0 end) "非控费诊断+非控费手术总费用",
+        round(((sum(case when t.控费类型 = 1 then t.总费用 else 0 end))/sum(t.总费用)),2)*100||'%' "控费诊断+控费手术总费用比例"
+        from patient_accounting t
+        <include refid="whereFordownloadKongFei"/>
+        group by t.医疗小组,t.科室
+        )
+        order by 科室,replace(医疗小组,'小计',null) desc
+    </select>
+
+    <sql id="whereFordownloadKongFei">
+        <where>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="department != null">
+                AND t.科室 = #{department}
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+        </where>
+    </sql>
+
+    <select id="getXiangMuJieSuanKKBL" resultType="map">
+		with mypatient_accounting as
+		(
+		select "病人ID",
+       "病人姓名",
+       "医保类别",
+       "参保类型",
+       "住院号",
+       "交易流水号",
+       "疾病编码",
+       "主诊断",
+       "手术医保编码",
+       "主手术",
+       "院内疾病编码",
+       "院内主诊断",
+       "院内手术医保编码",
+       "院内主手术",
+       "科室",
+       "医疗小组",
+       "主治医生",
+       "床位号",
+       "最后费用日期",
+       "入院日期",
+       "出院日期",
+       "支付标准价",
+       "CQ材料费",
+       "CG材料费",
+       "总费用",
+       "所用医保费用",
+       "自理金额",
+       "自费金额",
+       "自负金额",
+       "超限床位费",
+       "西药",
+       "中成药",
+       "中草药",
+       "检查费",
+       "治疗费",
+       "手术费",
+       "化验费",
+       "其他费用",
+       "输血费",
+       "输氧费",
+       "诊疗费",
+       "CT片",
+       "MRI片",
+       "床位费",
+       "婴儿费",
+       "护理费",
+       "放疗费",
+       "自负材料费",
+       "材料费",
+       "麻醉费",
+       "注射费",
+       "新生儿筛查",
+       "院前120急救费",
+       "除去超限床位费",
+       "病种比例",
+       "盈亏标识",
+       "盈利",
+       "当前状态",
+       case
+         when "控费类型" = '1' then
+          '控费主诊断+控费主手术'
+         when "控费类型" = '2' then
+          '控费主诊断+非控费主手术'
+         when "控费类型" = '3' then
+          '非控费主诊断+控费主手术'
+         when "控费类型" = '4' then
+          '非控费主诊断+非控费主手术'
+       end as 控费类型
+  			from patient_accounting t
+ 			<where>
+			 exists(
+			 select 1 from projectsettlementview t2 
+			 where t.交易流水号 = t2.交易流水号
+			  	<if test="importtime">
+            		and to_date(t2.导入时间,'yyyy-MM-dd hh24:mi:ss')  
+            			between to_date('${importtime}', 'yyyy-MM') 
+            			and		add_months(to_date('${importtime}', 'yyyy-MM'),1) - (1/(24*60*60))
+            	</if>
+			 )
+            <if test="title != null">
+                AND (
+                t.病人姓名 like '%${title}%' or
+                t.医保类别 like '%${title}%' or
+                t.参保类型 like '%${title}%' or
+                t.住院号 like '%${title}%' or
+                t.疾病编码 like '%${title}%' or
+                t.主诊断 like '%${title}%' or
+                t.手术医保编码 like '%${title}%' or
+                t.主手术 like '%${title}%' or
+                t.科室 like '%${title}%' or
+                t.医疗小组 like '%${title}%' or
+                t.主治医生 like '%${title}%'
+                )
+            </if>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+        </where>
+        )
+        select * FROM (
+			select t1.*,t2.项目结算扣款 from mypatient_accounting t1 left join (select 交易流水号, sum(扣除金额) 项目结算扣款
+                      from projectsettlementview
+                     group by 交易流水号) t2 on t1.交易流水号 = t2.交易流水号
+                     )
+        order by ${order}
+    </select>
+
+    <select id="getProjectsettlement" resultType="map">
+        select * FROM projectsettlementview t
+        <where>
+            <if test="jiaoyilsh != null">
+                and t.交易流水号 = '${jiaoyilsh}'
+            </if>
+            <if test="title != null">
+                AND (
+                t.审核意见书号 like '%${title}%' or
+                t.交易流水号 like '%${title}%' or
+                t.单据号 like '%${title}%' or
+                t.住院号 like '%${title}%' or
+                t.就医方式 like '%${title}%' or
+                t.费用日期 like '%${title}%' or
+                t.个人编号 like '%${title}%' or
+                t.参保人姓名 like '%${title}%' or
+                t.参保类型 like '%${title}%' or
+                t.科室 like '%${title}%' or
+                t.医生姓名 like '%${title}%' or
+                t.项目编号 like '%${title}%' or
+                t.项目名称 like '%${title}%' or
+                t.违反规则名称 like '%${title}%'
+                )
+            </if>
+            <if test="importtime">
+                and to_date(t.导入时间,'yyyy-MM-dd hh24:mi:ss')
+                between to_date('${importtime}', 'yyyy-MM')
+                and add_months(to_date('${importtime}', 'yyyy-MM'),1) - (1/(24*60*60))
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+        </where>
+        order by ${order}
+    </select>
+
+    <select id="downloadXiangMuJieSuanKKBL" resultType="map">
+        select * FROM projectsettlementview t
+        where exists(
+        select 1 from patient_accounting p
+        <where>
+            t.交易流水号 = p.交易流水号
+            <if test="chargetype != null">
+                AND p.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND p.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND p.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="importtime">
+                and to_date(t.导入时间,'yyyy-MM-dd hh24:mi:ss')
+                between to_date('${importtime}', 'yyyy-MM')
+                and add_months(to_date('${importtime}', 'yyyy-MM'),1) - (1/(24*60*60))
+            </if>
+        </where>
+        )
+        order by 序号
+    </select>
+
+
+    <insert id="addApplicationtemplate" parameterType="map">
+        insert into applicationtemplate 
+        (
+        ID,
+  		Fieldname,
+  		Associationname,
+  		CREATEDATE,
+  		UPDATEDATE,
+  		CREATEUSER,
+  		REMARK
+        ) values (
+        #{id},
+        #{fieldname},
+        #{associationname},
+        sysdate,
+        sysdate,
+        #{user},
+        null
+        )
+    </insert>
+
+    <delete id="deleteApplicationtemplate">
+    	delete from applicationtemplate
+    </delete>
+
+    <select id="findApplicationtemplate" resultType="map">
+    	select id,fieldname,associationname from applicationtemplate t order by t.id
+    </select>
+
+
+    <select id="tuichuyibaokfjsbl" resultType="map">
+        select
+        to_char(to_date(t.出院日期, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM')||'-01 00:00:00' startdate,
+        max(to_char(last_day(to_date(t.出院日期, 'yyyy-MM-dd hh24:mi:ss')), 'yyyy-MM-dd')) || ' 23:59:59' enddate,
+        to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM') 统计时间,
+        count(distinct(case when t.盈亏标识 = 0 then t.住院号 end)) 亏损病例数,
+        sum(case when t.盈亏标识 = 0 then (t.支付标准价+t.CG材料费+t.CQ材料费+t.超限床位费- t.自理金额-t.自费金额) else 0 end) 亏损定额结算金额,
+        floor(count(distinct t.住院号)*0.15) 可申请退出病例数,
+        count(distinct t2.住院号) 实际退出病例数,
+        nvl(sum(t2.盈利),0) 止损金额
+        from patient_accounting t left outer join drgs.out_medicare t2
+        on t.住院号 = t2.住院号
+        <where>
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <!-- 年月筛选器使用 -->
+            <if test="startdate != null">
+                and to_date(t.${isouttype},'yyyy-MM-dd hh24:mi:ss')
+                >= to_date('${startdate}', 'yyyy-MM')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+            	and to_date(t.${isouttype},'yyyy-MM-dd hh24:mi:ss')  
+            		<= add_months(to_date('${enddate}', 'yyyy-MM'),1) - (1/(24*60*60))
+            		]]>
+            </if>
+            <!-- 年月筛选器使用 -->
+            <if test="statisticalTime">
+                and to_date(t.${isouttype},'yyyy-MM-dd hh24:mi:ss')
+                between to_date('${statisticalTime}', 'yyyy-MM')
+                and add_months(to_date('${statisticalTime}', 'yyyy-MM'),1) - (1/(24*60*60))
+            </if>
+        </where>
+        group by to_char(to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss'),'yyyy-MM')
+    </select>
+
+    <select id="tuichuyibaokfjsblxx" resultType="map">
+        select * from costmonitoring t
+        <where>
+            <if test="title != null">
+                AND (
+                t.病人姓名 like '%${title}%' or
+                t.医保类别 like '%${title}%' or
+                t.参保类型 like '%${title}%' or
+                t.住院号 like '%${title}%' or
+                t.疾病编码 like '%${title}%' or
+                t.主诊断 like '%${title}%' or
+                t.手术医保编码 like '%${title}%' or
+                t.主手术 like '%${title}%' or
+                t.科室 like '%${title}%' or
+                t.主治医生 like '%${title}%' or
+                t.盈利 like '${title}'
+                )
+            </if>
+
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+            <if test="screen != null and screen.size > 0">
+                AND (
+                <foreach collection="screen" item="item">
+                    ${item.name} ${item.value} or
+                </foreach>
+                1 = 2 )
+            </if>
+        </where>
+        order by t.${order}
+    </select>
+
+    <select id="findout_medicare" resultType="map">
+        select * from out_medicare t
+        <where>
+            <if test="chargetype != null">
+                AND t.控费类型 = #{chargetype}
+            </if>
+            <if test="notcontaincash != null">
+                <![CDATA[
+                AND t.医保类别 <> '现金'
+                ]]>
+            </if>
+            <if test="outhospitalflag != null">
+                AND t.当前状态 = #{outhospitalflag}
+            </if>
+            <if test="startdate != null">
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') >= to_date(#{startdate}, 'yyyy-MM-dd hh24:mi:ss')
+            </if>
+            <if test="enddate != null">
+                <![CDATA[
+                AND to_date(t.${isouttype}, 'yyyy-MM-dd hh24:mi:ss') < to_date(#{enddate}, 'yyyy-MM-dd hh24:mi:ss') +1
+                ]]>
+            </if>
+            <if test="filter != null">
+                <foreach collection="filter" item="item">
+                    AND ${item.name} in (${item.value})
+                </foreach>
+            </if>
+            <if test="screen != null">
+                <foreach collection="screen" item="item">
+                    AND ${item.name} ${item.value}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+    <delete id="cancelOut_medicare">
+    	delete from out_medicare t where t.住院号  in (${hospital_code}) 
+    </delete>
+
+</mapper>
